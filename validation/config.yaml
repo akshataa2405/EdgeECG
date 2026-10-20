@@ -1,0 +1,66 @@
+dataset_name: "MIT-BIH Arrhythmia Database"
+dataset_url: "https://physionet.org/content/mitdb/1.0.0/"
+dataset_dir: "./mitdb"
+
+sample_rate_native_hz: 360
+sample_rate_target_hz: 250
+
+matching_tolerance_ms: 100
+sensitivity_analysis_tolerance_ms: 50
+
+# Disjoint record partition defined prior to evaluation
+splits:
+  development:
+    - "100"
+    - "101"
+    - "103"
+    - "105"
+    - "106"
+    - "108"
+    - "109"
+    - "111"
+    - "112"
+    - "113"
+    - "114"
+    - "115"
+    - "116"
+    - "117"
+    - "118"
+    - "119"
+    - "121"
+    - "122"
+    - "123"
+    - "124"
+    - "200"
+    - "201"
+    - "202"
+    - "203"
+    - "205"
+    - "207"
+    - "208"
+    - "209"
+    - "210"
+    - "212"
+    - "213"
+    - "214"
+  heldout:
+    - "215"
+    - "217"
+    - "219"
+    - "220"
+    - "221"
+    - "222"
+    - "223"
+    - "228"
+    - "230"
+    - "231"
+    - "232"
+    - "233"
+    - "234"
+  excluded:
+    - record: "102"
+      reason: "Ventricular pacemaker rhythm (AAMI EC57 exclusion)"
+    - record: "104"
+      reason: "Ventricular pacemaker rhythm (AAMI EC57 exclusion)"
+    - record: "107"
+      reason: "Ventricular pacemaker rhythm (AAMI EC57 exclusion)"

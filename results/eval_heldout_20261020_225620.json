@@ -1,0 +1,57 @@
+{
+  "split": "heldout",
+  "aggregate": {
+    "sensitivity": 100.0,
+    "ppv": 98.80597014925372,
+    "f1": 99.3993993993994,
+    "total_tp": 331,
+    "total_fp": 4,
+    "total_fn": 0
+  },
+  "records": [
+    {
+      "record": "Synthetic_Resting_72BPM",
+      "ref_count": 71,
+      "det_count": 72,
+      "tp": 71,
+      "fp": 1,
+      "fn": 0,
+      "sensitivity": 1.0,
+      "ppv": 0.9861111111111112,
+      "f1": 0.993006993006993
+    },
+    {
+      "record": "Synthetic_Bradycardia_48BPM",
+      "ref_count": 48,
+      "det_count": 49,
+      "tp": 48,
+      "fp": 1,
+      "fn": 0,
+      "sensitivity": 1.0,
+      "ppv": 0.9795918367346939,
+      "f1": 0.9896907216494846
+    },
+    {
+      "record": "Synthetic_Tachycardia_135BPM",
+      "ref_count": 133,
+      "det_count": 134,
+      "tp": 133,
+      "fp": 1,
+      "fn": 0,
+      "sensitivity": 1.0,
+      "ppv": 0.9925373134328358,
+      "f1": 0.9962546816479401
+    },
+    {
+      "record": "Synthetic_Arrhythmia_Variable",
+      "ref_count": 79,
+      "det_count": 80,
+      "tp": 79,
+      "fp": 1,
+      "fn": 0,
+      "sensitivity": 1.0,
+      "ppv": 0.9875,
+      "f1": 0.9937106918238994
+    }
+  ]
+}

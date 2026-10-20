@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EdgeECG — Real-Time Embedded Physiological Telemetry</title>
+  <meta name="description" content="EdgeECG Dashboard — Real-time ECG metrics, HRV RMSSD trends, offline synchronization status, and physiological deviation flags.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Chart.js and date-fns adapter -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/date-fns@3.3.1/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">EdgeECG</h1>
+          <span class="brand-subtitle">ESP32 Offline-First Telemetry Monitor</span>
+        </div>
+      </div>
+
+      <div class="header-status-group">
+        <div class="device-selector">
+          <label for="device-id-select">Device:</label>
+          <select id="device-id-select">
+            <option value="edgeecg-001" selected>edgeecg-001</option>
+          </select>
+        </div>
+
+        <div id="connection-badge" class="badge badge-offline">
+          <span class="status-dot"></span>
+          <span id="connection-status-text">DISCONNECTED</span>
+        </div>
+
+        <div id="quality-badge" class="badge badge-neutral">
+          <span id="quality-status-text">NO SIGNAL</span>
+        </div>
+
+        <button id="refresh-btn" class="btn btn-secondary" title="Force Refresh">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/>
+          </svg>
+          Sync
+        </button>
+      </div>
+    </header>
+
+    <!-- Medical Notice Banner -->
+    <div class="safety-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <span><strong>Educational Prototype:</strong> Not for medical diagnosis or clinical decision-making. Heart rate and interval flags are software approximations.</span>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="main-container">
+      <!-- Metric Cards Grid -->
+      <section class="metrics-grid">
+        <!-- Metric Card 1: Heart Rate -->
+        <div class="metric-card">
+          <div class="card-header">
+            <span class="card-label">HEART RATE</span>
+            <span class="pulse-indicator" id="hr-pulse"></span>
+          </div>
+          <div class="card-body">
+            <div class="metric-value-row">
+              <span id="metric-hr" class="metric-value">--</span>
+              <span class="metric-unit">BPM</span>
+            </div>
+            <div class="metric-meta">
+              <span>Target: 30 - 200 BPM</span>
+              <span id="hr-status-hint" class="hint-normal">Awaiting beats</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Card 2: RMSSD (HRV) -->
+        <div class="metric-card">
+          <div class="card-header">
+            <span class="card-label">HRV (ROLLING RMSSD)</span>
+            <span class="info-pill" title="Root Mean Square of Successive RR Differences over rolling window">60s Window</span>
+          </div>
+          <div class="card-body">
+            <div class="metric-value-row">
+              <span id="metric-rmssd" class="metric-value">--</span>
+              <span class="metric-unit">ms</span>
+            </div>
+            <div class="metric-meta">
+              <span>Valid Interval Threshold: &ge; 10 beats</span>
+              <span id="rmssd-status-hint">Pending sample history</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Card 3: Latest RR Interval -->
+        <div class="metric-card">
+          <div class="card-header">
+            <span class="card-label">LATEST RR INTERVAL</span>
+            <span class="info-pill">Pan-Tompkins</span>
+          </div>
+          <div class="card-body">
+            <div class="metric-value-row">
+              <span id="metric-rr" class="metric-value">--</span>
+              <span class="metric-unit">ms</span>
+            </div>
+            <div class="metric-meta">
+              <span>Beat-to-beat interval</span>
+              <span id="rr-jump-badge" class="badge badge-tiny badge-neutral">Nominal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric Card 4: Synchronization State -->
+        <div class="metric-card">
+          <div class="card-header">
+            <span class="card-label">EDGE SYNCHRONIZATION</span>
+            <span class="info-pill" id="device-sync-state">Offline</span>
+          </div>
+          <div class="card-body">
+            <div class="sync-info-list">
+              <div class="sync-info-item">
+                <span class="sync-info-label">Last Sync Age:</span>
+                <span id="metric-last-sync-age" class="sync-info-val">Never</span>
+              </div>
+              <div class="sync-info-item">
+                <span class="sync-info-label">Sequence #</span>
+                <span id="metric-sequence" class="sync-info-val">--</span>
+              </div>
+              <div class="sync-info-item">
+                <span class="sync-info-label">Detected / Rejected:</span>
+                <span id="metric-peaks-ratio" class="sync-info-val">0 / 0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Trends Chart Section -->
+      <section class="chart-section">
+        <div class="section-header">
+          <div class="section-title-group">
+            <h2 class="section-title">Physiological Trend History</h2>
+            <span class="section-desc">Historical heart rate and rolling RMSSD measurements stored in SQLite</span>
+          </div>
+          <div class="chart-actions">
+            <div class="btn-group" id="time-window-group">
+              <button class="btn btn-tab active" data-window="3600000">1 Hour</button>
+              <button class="btn btn-tab" data-window="86400000">24 Hours</button>
+              <button class="btn btn-tab" data-window="604800000">7 Days</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div id="chart-loader" class="loader-overlay" hidden>
+            <div class="spinner"></div>
+            <span>Fetching historical records...</span>
+          </div>
+          <div id="chart-empty-state" class="empty-state" hidden>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3 3v18h18M7 16l4-4 4 4 5-6"/>
+            </svg>
+            <p>No telemetry recorded for this time interval.</p>
+            <span class="subtext">Connect your ESP32 device or upload batches via the REST API.</span>
+          </div>
+          <div class="chart-canvas-wrapper">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Flags & Quality Audit Section -->
+      <section class="flags-section">
+        <div class="section-header">
+          <div class="section-title-group">
+            <h2 class="section-title">Rule-Based Deviation Flags</h2>
+            <span class="section-desc">Algorithmic checks for unusual RR intervals and physiological deviations</span>
+          </div>
+          <button id="clear-flags-btn" class="btn btn-ghost btn-sm">Refresh Flags</button>
+        </div>
+
+        <div class="flags-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Sequence</th>
+                  <th>Heart Rate</th>
+                  <th>RR Interval</th>
+                  <th>Flag Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody id="flags-tbody">
+                <tr>
+                  <td colspan="6" class="text-center text-muted">No deviation flags registered.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div>EdgeECG Open Hardware &amp; Firmware Prototype &bull; MIT License</div>
+      <div class="footer-links">
+        <a href="/docs" target="_blank">Documentation</a> &bull;
+        <a href="https://github.com" target="_blank">GitHub Repository</a>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
