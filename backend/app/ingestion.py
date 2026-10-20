@@ -52,6 +52,7 @@ async def process_batch_ingestion(
             detected_peaks=record_in.detected_peaks,
             rejected_peaks=record_in.rejected_peaks,
             schema_version=request.schema_version,
+            raw_samples=record_in.raw_samples,
         )
         db.add(new_record)
         accepted_sequences.append(record_in.sequence)

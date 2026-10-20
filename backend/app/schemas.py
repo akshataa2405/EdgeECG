@@ -12,6 +12,7 @@ class MetricRecordIn(BaseModel):
     signal_quality: Literal["valid", "degraded", "invalid"] = Field(..., description="Signal quality state")
     detected_peaks: int = Field(0, ge=0)
     rejected_peaks: int = Field(0, ge=0)
+    raw_samples: Optional[List[float]] = Field(None, description="Optional raw ADC or millivolt ECG waveform samples buffer")
 
 
 class IngestRequest(BaseModel):
@@ -40,6 +41,7 @@ class MetricRecordOut(BaseModel):
     signal_quality: str
     detected_peaks: int
     rejected_peaks: int
+    raw_samples: Optional[List[float]] = None
 
 
 class LatestMetricResponse(BaseModel):

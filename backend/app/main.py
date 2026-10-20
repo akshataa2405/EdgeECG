@@ -106,6 +106,20 @@ async def get_flags(
     return await evaluate_device_flags(device_id, limit, db)
 
 
+@app.delete("/api/v1/devices/{device_id}/records", tags=["Dashboard"])
+async def delete_records(
+    device_id: str,
+    db: AsyncSession = Depends(get_db),
+    _auth: bool = Depends(verify_dashboard_auth)
+):
+    from sqlalchemy import delete
+    from .database import MetricRecord
+    stmt = delete(MetricRecord).where(MetricRecord.device_id == device_id)
+    await db.execute(stmt)
+    await db.commit()
+    return {"status": "cleared", "device_id": device_id}
+
+
 # Mount dashboard static assets at root (evaluated after API routes)
 dashboard_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "dashboard")
 if os.path.exists(dashboard_dir):

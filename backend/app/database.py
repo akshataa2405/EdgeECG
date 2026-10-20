@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import AsyncGenerator
 from sqlalchemy import (
     Column, Integer, BigInteger, Float, String, Boolean, ForeignKey,
-    UniqueConstraint, Index, select
+    UniqueConstraint, Index, select, JSON
 )
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, relationship
@@ -54,6 +54,7 @@ class MetricRecord(Base):
     detected_peaks = Column(Integer, nullable=False, default=0)
     rejected_peaks = Column(Integer, nullable=False, default=0)
     schema_version = Column(Integer, nullable=False, default=1)
+    raw_samples = Column(JSON, nullable=True)
 
     device = relationship("Device", back_populates="records")
 

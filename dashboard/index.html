@@ -3,228 +3,342 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EdgeECG — Real-Time Embedded Physiological Telemetry</title>
-  <meta name="description" content="EdgeECG Dashboard — Real-time ECG metrics, HRV RMSSD trends, offline synchronization status, and physiological deviation flags.">
+  <title>EdgeECG — Telemetry Instrument &amp; Physiological Monitor</title>
+  <meta name="description" content="EdgeECG — Precision single-lead physiological telemetry instrument, embedded Pan-Tompkins R-peak detector, and HRV autonomic monitor.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
-  <!-- Chart.js and date-fns adapter -->
+  <!-- Chart.js UMD bundle -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/date-fns@3.3.1/cdn.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </head>
-<body>
-  <div class="app-layout">
-    <!-- Top Navigation Header -->
-    <header class="app-header">
-      <div class="brand-group">
-        <div class="brand-logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-          </svg>
+<body class="instrument-body">
+  <div class="workbench">
+    
+    <!-- Top System Telemetry Bar -->
+    <header class="app-header" role="banner">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-glyph" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="2 12 5.5 12 8.5 4 14 20 17 12 22 12"></polyline>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">EdgeECG</span>
+            <span class="brand-subtitle">Telemetry Instrument</span>
+          </div>
         </div>
-        <div>
-          <h1 class="brand-title">EdgeECG</h1>
-          <span class="brand-subtitle">ESP32 Offline-First Telemetry Monitor</span>
+
+        <div class="header-sep" aria-hidden="true"></div>
+
+        <!-- Device Selector -->
+        <div class="device-selector-group">
+          <label for="device-id-select" class="control-label">Device</label>
+          <div class="select-wrapper">
+            <select id="device-id-select" aria-label="Target telemetry device">
+              <option value="edgeecg-001" selected>edgeecg-001 (AD8232 / ESP32)</option>
+            </select>
+            <svg class="select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
         </div>
       </div>
 
-      <div class="header-status-group">
-        <div class="device-selector">
-          <label for="device-id-select">Device:</label>
-          <select id="device-id-select">
-            <option value="edgeecg-001" selected>edgeecg-001</option>
-          </select>
+      <div class="header-right">
+        <!-- Compact Hardware Status Cluster -->
+        <div class="status-cluster" role="status" aria-label="Telemetry Link and Signal Status">
+          <div class="status-pill" title="Transport link connectivity status">
+            <span class="pill-dot" id="connection-dot" aria-hidden="true"></span>
+            <span class="pill-tag">Link</span>
+            <span id="connection-badge" class="instrument-badge badge-offline">
+              <span id="connection-status-text">Offline</span>
+            </span>
+          </div>
+
+          <div class="status-pill" title="Analog front-end electrode impedance and lead status">
+            <span class="pill-dot" id="quality-dot" aria-hidden="true"></span>
+            <span class="pill-tag">Signal</span>
+            <span id="quality-badge" class="instrument-badge badge-neutral">
+              <span id="quality-status-text">No Signal</span>
+            </span>
+          </div>
         </div>
 
-        <div id="connection-badge" class="badge badge-offline">
-          <span class="status-dot"></span>
-          <span id="connection-status-text">DISCONNECTED</span>
-        </div>
+        <div class="header-sep" aria-hidden="true"></div>
 
-        <div id="quality-badge" class="badge badge-neutral">
-          <span id="quality-status-text">NO SIGNAL</span>
-        </div>
+        <!-- System Controls -->
+        <div class="header-actions">
+          <button id="refresh-btn" class="btn btn-primary" title="Force synchronize telemetry (Hotkey: R)" aria-label="Synchronize Telemetry">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
+            </svg>
+            <span>Sync</span>
+          </button>
 
-        <button id="refresh-btn" class="btn btn-secondary" title="Force Refresh">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.19"/>
-          </svg>
-          Sync
-        </button>
+          <button id="clear-records-btn" class="btn btn-ghost-danger" title="Purge database records for selected device" aria-label="Reset Device Database">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Reset DB</span>
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Medical Notice Banner -->
-    <div class="safety-banner">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="12"></line>
-        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-      </svg>
-      <span><strong>Educational Prototype:</strong> Not for medical diagnosis or clinical decision-making. Heart rate and interval flags are software approximations.</span>
-    </div>
+    <!-- Calibration & Technical Metadata Bar -->
+    <aside class="meta-strip" role="region" aria-label="Technical Specification and Regulatory Notice">
+      <div class="meta-strip-left">
+        <span class="badge-subtle">Educational Benchmark</span>
+        <span class="meta-strip-text">Single-lead physiological monitor prototype. <strong>Not a clinical diagnostic device.</strong> Algorithmic outputs are non-diagnostic engineering estimates.</span>
+      </div>
+      <div class="meta-strip-right">
+        <span class="meta-spec">Rate: <strong>250 Hz</strong></span>
+        <span class="meta-bullet" aria-hidden="true">&bull;</span>
+        <span class="meta-spec">Filter: <strong>5.0–15.0 Hz Bandpass</strong></span>
+        <span class="meta-bullet" aria-hidden="true">&bull;</span>
+        <span class="meta-spec">Detector: <strong>Pan–Tompkins MWI (C99)</strong></span>
+      </div>
+    </aside>
 
-    <!-- Main Content Container -->
-    <main class="main-container">
-      <!-- Metric Cards Grid -->
-      <section class="metrics-grid">
-        <!-- Metric Card 1: Heart Rate -->
-        <div class="metric-card">
-          <div class="card-header">
-            <span class="card-label">HEART RATE</span>
-            <span class="pulse-indicator" id="hr-pulse"></span>
+    <!-- Main Instrument Deck -->
+    <main class="workbench-body" role="main">
+
+      <!-- Measurement Overview -->
+      <section class="metrics-grid" aria-label="Primary Physiological Measurements">
+        
+        <!-- Primary Focus: Heart Rate -->
+        <article class="metric-card metric-card-hero">
+          <div class="card-top">
+            <div class="card-caption">
+              <span class="card-title">Heart Rate</span>
+              <span class="card-subtitle">Real-time pulse rate</span>
+            </div>
+            <div class="r-strobe-container" title="Hardware R-peak strobe detector">
+              <span class="strobe-lamp" id="hr-pulse" aria-hidden="true"></span>
+              <span class="strobe-text">R-Peak</span>
+            </div>
           </div>
-          <div class="card-body">
-            <div class="metric-value-row">
-              <span id="metric-hr" class="metric-value">--</span>
-              <span class="metric-unit">BPM</span>
+
+          <div class="hero-metric-display">
+            <div class="num-group">
+              <span id="metric-hr" class="num-hero num-tabular">--</span>
+              <span class="num-unit-hero">BPM</span>
             </div>
-            <div class="metric-meta">
-              <span>Target: 30 - 200 BPM</span>
-              <span id="hr-status-hint" class="hint-normal">Awaiting beats</span>
+          </div>
+
+          <div class="card-bottom">
+            <div class="status-indicator-row">
+              <span id="hr-status-hint" class="metric-state-text status-text-nominal">Awaiting acquisition</span>
+              <span class="state-secondary">Nominal range: 60–100 BPM</span>
             </div>
+            <div class="submetric-pill">
+              <span class="submetric-label">RR Interval</span>
+              <span id="metric-rr" class="submetric-val num-tabular">--</span>
+              <span class="submetric-unit">ms</span>
+              <span id="rr-jump-badge" class="state-chip chip-neutral">Nominal</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Secondary Metric: HRV RMSSD -->
+        <article class="metric-card metric-card-secondary">
+          <div class="card-top">
+            <div class="card-caption">
+              <span class="card-title">HRV RMSSD</span>
+              <span class="card-subtitle">Autonomic parasympathetic tone</span>
+            </div>
+            <span class="badge-subtle badge-muted">Rolling 60s</span>
+          </div>
+
+          <div class="secondary-metric-display">
+            <div class="num-group">
+              <span id="metric-rmssd" class="num-secondary num-tabular">--</span>
+              <span class="num-unit-secondary">ms</span>
+            </div>
+          </div>
+
+          <div class="card-bottom">
+            <div class="status-indicator-row">
+              <span id="rmssd-status-hint" class="metric-state-text status-text-neutral">Pending beat window</span>
+              <span class="state-secondary">Threshold: &ge; 10 consecutive beats</span>
+            </div>
+            <div class="metric-caption-sub">
+              <span>Root mean square of successive RR interval differences</span>
+            </div>
+          </div>
+        </article>
+
+        <!-- Stream & Telemetry Statistics -->
+        <article class="metric-card metric-card-telemetry">
+          <div class="card-top">
+            <div class="card-caption">
+              <span class="card-title">Telemetry Stream</span>
+              <span class="card-subtitle">Transport &amp; ingestion pipeline</span>
+            </div>
+            <span id="device-sync-state" class="badge-subtle badge-status">Standby</span>
+          </div>
+
+          <div class="telemetry-table">
+            <div class="telemetry-item">
+              <span class="t-k">Last Ingested</span>
+              <span id="metric-last-sync-age" class="t-v">Never</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="t-k">Sequence</span>
+              <span id="metric-sequence" class="t-v num-tabular font-mono">--</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="t-k">Detected / Rejected Peaks</span>
+              <span id="metric-peaks-ratio" class="t-v num-tabular font-mono">0 / 0</span>
+            </div>
+            <div class="telemetry-item">
+              <span class="t-k">Ingestion Path</span>
+              <span class="t-v font-mono text-dim">/api/v1/ingest</span>
+            </div>
+          </div>
+        </article>
+
+      </section>
+
+      <!-- Lead-II Real-Time ECG Waveform Oscilloscope -->
+      <section class="workbench-panel ecg-scope-section" aria-label="Real-Time Lead-II ECG Waveform">
+        <div class="panel-header">
+          <div class="panel-title-block">
+            <div class="panel-badge-row">
+              <span class="badge-accent">Lead II</span>
+              <h2 class="panel-heading">Real-Time ECG Waveform</h2>
+            </div>
+            <span class="panel-description">P-Q-R-S-T cardiac potential sweep [mV] &bull; Paced by incoming telemetry &bull; 25 mm/s standard calibration</span>
+          </div>
+
+          <div class="scope-legend-cluster">
+            <span class="scope-spec">Sweep: <strong>25 mm/s</strong></span>
+            <span class="scope-spec">Scale: <strong>10 mm/mV</strong></span>
+            <span class="scope-spec">Bandpass: <strong>5.0–15.0 Hz</strong></span>
+            <span class="scope-spec">Morphology: <strong id="scope-pqrst-label">P-Q-R-S-T</strong></span>
           </div>
         </div>
 
-        <!-- Metric Card 2: RMSSD (HRV) -->
-        <div class="metric-card">
-          <div class="card-header">
-            <span class="card-label">HRV (ROLLING RMSSD)</span>
-            <span class="info-pill" title="Root Mean Square of Successive RR Differences over rolling window">60s Window</span>
-          </div>
-          <div class="card-body">
-            <div class="metric-value-row">
-              <span id="metric-rmssd" class="metric-value">--</span>
-              <span class="metric-unit">ms</span>
-            </div>
-            <div class="metric-meta">
-              <span>Valid Interval Threshold: &ge; 10 beats</span>
-              <span id="rmssd-status-hint">Pending sample history</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Metric Card 3: Latest RR Interval -->
-        <div class="metric-card">
-          <div class="card-header">
-            <span class="card-label">LATEST RR INTERVAL</span>
-            <span class="info-pill">Pan-Tompkins</span>
-          </div>
-          <div class="card-body">
-            <div class="metric-value-row">
-              <span id="metric-rr" class="metric-value">--</span>
-              <span class="metric-unit">ms</span>
-            </div>
-            <div class="metric-meta">
-              <span>Beat-to-beat interval</span>
-              <span id="rr-jump-badge" class="badge badge-tiny badge-neutral">Nominal</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Metric Card 4: Synchronization State -->
-        <div class="metric-card">
-          <div class="card-header">
-            <span class="card-label">EDGE SYNCHRONIZATION</span>
-            <span class="info-pill" id="device-sync-state">Offline</span>
-          </div>
-          <div class="card-body">
-            <div class="sync-info-list">
-              <div class="sync-info-item">
-                <span class="sync-info-label">Last Sync Age:</span>
-                <span id="metric-last-sync-age" class="sync-info-val">Never</span>
-              </div>
-              <div class="sync-info-item">
-                <span class="sync-info-label">Sequence #</span>
-                <span id="metric-sequence" class="sync-info-val">--</span>
-              </div>
-              <div class="sync-info-item">
-                <span class="sync-info-label">Detected / Rejected:</span>
-                <span id="metric-peaks-ratio" class="sync-info-val">0 / 0</span>
-              </div>
-            </div>
+        <div class="scope-container">
+          <canvas id="ecgScopeCanvas" class="scope-canvas" height="130"></canvas>
+          <div class="scope-annotations" aria-hidden="true">
+            <span class="scope-tag tag-p">P &middot; Atrial Depol</span>
+            <span class="scope-tag tag-qrs">QRS &middot; Ventricular Depol (R-Peak)</span>
+            <span class="scope-tag tag-t">T &middot; Ventricular Repol</span>
           </div>
         </div>
       </section>
 
-      <!-- Trends Chart Section -->
-      <section class="chart-section">
-        <div class="section-header">
-          <div class="section-title-group">
-            <h2 class="section-title">Physiological Trend History</h2>
-            <span class="section-desc">Historical heart rate and rolling RMSSD measurements stored in SQLite</span>
+      <!-- Main Analytical Section: Physiological Trend Recorder -->
+      <section class="workbench-panel chart-section" aria-label="Physiological Trend Recorder">
+        <div class="panel-header">
+          <div class="panel-title-block">
+            <h2 class="panel-heading">Physiological Trend History</h2>
+            <span class="panel-description">Time-series heart rate [BPM] and autonomic RMSSD [ms]. Gaps reflect telemetry discontinuities without smoothing.</span>
           </div>
-          <div class="chart-actions">
-            <div class="btn-group" id="time-window-group">
-              <button class="btn btn-tab active" data-window="3600000">1 Hour</button>
-              <button class="btn btn-tab" data-window="86400000">24 Hours</button>
-              <button class="btn btn-tab" data-window="604800000">7 Days</button>
+
+          <div class="chart-controls">
+            <!-- Refined Segmented Time Horizon Selector -->
+            <div class="segmented-control" id="time-window-group" role="tablist" aria-label="Select history horizon">
+              <button class="segment-btn window-tab active" data-window="180000" role="tab" aria-selected="true">Live 3m</button>
+              <button class="segment-btn window-tab" data-window="3600000" role="tab" aria-selected="false">1 Hour</button>
+              <button class="segment-btn window-tab" data-window="86400000" role="tab" aria-selected="false">24 Hours</button>
+              <button class="segment-btn window-tab" data-window="all" role="tab" aria-selected="false">All Data</button>
             </div>
           </div>
         </div>
 
-        <div class="chart-card">
-          <div id="chart-loader" class="loader-overlay" hidden>
-            <div class="spinner"></div>
-            <span>Fetching historical records...</span>
+        <div class="chart-stage">
+          <div id="chart-loader" class="chart-overlay loader-overlay" style="display: none;" aria-live="polite">
+            <div class="spinner" aria-hidden="true"></div>
+            <span class="overlay-text">Retrieving telemetry records...</span>
           </div>
-          <div id="chart-empty-state" class="empty-state" hidden>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M3 3v18h18M7 16l4-4 4 4 5-6"/>
+
+          <div id="chart-empty-state" class="chart-overlay empty-overlay" style="display: none;">
+            <svg class="empty-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <rect x="2" y="2" width="20" height="20" rx="3"></rect>
+              <path d="M7 16l4-4 4 4 5-6"></path>
             </svg>
-            <p>No telemetry recorded for this time interval.</p>
-            <span class="subtext">Connect your ESP32 device or upload batches via the REST API.</span>
+            <span class="empty-headline">No Telemetry Recorded for Current Horizon</span>
+            <span class="empty-subtext">Execute <code>python3 tools/stream_telemetry.py</code> or connect an ESP32 to stream live data.</span>
           </div>
-          <div class="chart-canvas-wrapper">
-            <canvas id="telemetryChart"></canvas>
+
+          <div class="chart-wrapper">
+            <canvas id="telemetryChart" aria-label="Heart rate and RMSSD trend graph" role="img"></canvas>
           </div>
         </div>
       </section>
 
-      <!-- Flags & Quality Audit Section -->
-      <section class="flags-section">
-        <div class="section-header">
-          <div class="section-title-group">
-            <h2 class="section-title">Rule-Based Deviation Flags</h2>
-            <span class="section-desc">Algorithmic checks for unusual RR intervals and physiological deviations</span>
+      <!-- Deviation Audit Log -->
+      <section class="workbench-panel log-section" aria-label="Deviation Audit Log">
+        <div class="panel-header">
+          <div class="panel-title-block">
+            <h2 class="panel-heading">Algorithmic Deviation Log</h2>
+            <span class="panel-description">Rule-based physiological events: Tachycardia (&gt;120 BPM), Bradycardia (&lt;50 BPM), and RR Jump (&gt;30% variance)</span>
           </div>
-          <button id="clear-flags-btn" class="btn btn-ghost btn-sm">Refresh Flags</button>
+
+          <button id="clear-flags-btn" class="btn btn-secondary btn-sm" title="Refresh flagged deviations" aria-label="Refresh Audit Log">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
+            </svg>
+            <span>Refresh Log</span>
+          </button>
         </div>
 
-        <div class="flags-card">
-          <div class="table-responsive">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Sequence</th>
-                  <th>Heart Rate</th>
-                  <th>RR Interval</th>
-                  <th>Flag Type</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody id="flags-tbody">
-                <tr>
-                  <td colspan="6" class="text-center text-muted">No deviation flags registered.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="table-container">
+          <table class="data-table" aria-label="Detected Deviation Events">
+            <thead>
+              <tr>
+                <th scope="col" style="width: 130px;">Timestamp</th>
+                <th scope="col" style="width: 90px;">Seq</th>
+                <th scope="col" style="width: 120px;">Heart Rate</th>
+                <th scope="col" style="width: 120px;">RR Interval</th>
+                <th scope="col" style="width: 140px;">Classification</th>
+                <th scope="col">Diagnostic Criteria &amp; Description</th>
+              </tr>
+            </thead>
+            <tbody id="flags-tbody">
+              <tr>
+                <td colspan="6" class="table-empty">
+                  <div class="empty-inline-state">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>No physiological flags or RR interval deviations recorded in current session.</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
+
     </main>
 
-    <!-- Footer -->
-    <footer class="app-footer">
-      <div>EdgeECG Open Hardware &amp; Firmware Prototype &bull; MIT License</div>
-      <div class="footer-links">
-        <a href="/docs" target="_blank">Documentation</a> &bull;
-        <a href="https://github.com" target="_blank">GitHub Repository</a>
+    <!-- Refined Instrument Footer -->
+    <footer class="app-footer" role="contentinfo">
+      <div class="footer-left">
+        <span class="footer-brand">EdgeECG System v1.0.4</span>
+        <span class="footer-sep" aria-hidden="true">&bull;</span>
+        <span class="footer-desc">Open Hardware &amp; Embedded Firmware Prototype</span>
+        <span class="footer-sep" aria-hidden="true">&bull;</span>
+        <span class="footer-lic">MIT License</span>
+      </div>
+
+      <div class="footer-right">
+        <a href="/docs" target="_blank" rel="noreferrer" class="footer-anchor">REST API Docs</a>
+        <span class="footer-sep" aria-hidden="true">&bull;</span>
+        <a href="https://github.com" target="_blank" rel="noreferrer" class="footer-anchor">Firmware Repository</a>
+        <span class="footer-sep" aria-hidden="true">&bull;</span>
+        <span class="badge-subtle badge-muted">Store &amp; Forward Architecture</span>
       </div>
     </footer>
+
   </div>
 
   <script src="app.js"></script>
