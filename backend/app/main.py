@@ -106,11 +106,7 @@ async def get_flags(
     return await evaluate_device_flags(device_id, limit, db)
 
 
-# Mount dashboard static assets if dashboard folder exists
+# Mount dashboard static assets at root (evaluated after API routes)
 dashboard_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "dashboard")
 if os.path.exists(dashboard_dir):
-    app.mount("/static", StaticFiles(directory=dashboard_dir), name="static")
-
-    @app.get("/", include_in_schema=False)
-    async def serve_dashboard():
-        return FileResponse(os.path.join(dashboard_dir, "index.html"))
+    app.mount("/", StaticFiles(directory=dashboard_dir, html=True), name="dashboard")
